@@ -6,9 +6,9 @@
 >
 > `make verify` sẽ fail nếu còn placeholder chưa điền. Đó là cố ý.
 
-**Họ Tên:** _<Họ Tên>_
-**Cohort:** _<A20-K1 / A20-K2 / ...>_
-**Ngày submit:** _<YYYY-MM-DD>_
+**Họ Tên:** Đỗ Thái Dương
+**Cohort:** Cohort 3
+**Ngày submit:** 2026-08-20
 
 ---
 
@@ -16,23 +16,24 @@
 
 > Từ `make probe`. Paste output hoặc điền tay.
 
-- **OS:** _<macOS 14 / Windows 11 / Ubuntu 24.04 / ...>_
-- **CPU:** _<Apple M2 / Intel i7-12700H / AMD Ryzen 7 5800H>_
-- **Cores:** _<physical / logical>_
-- **CPU extensions:** _<AVX2 / AVX-512 / NEON / —>_
-- **RAM:** _<GB>_
-- **Accelerator:** _<NVIDIA RTX 4060 / Apple Metal / Vulkan / CPU only>_
-- **llama.cpp asset đã tải:** _<vd: llama-b10488-bin-macos-arm64.tar.gz>_
-- **Model đã dùng:** _<Gemma 4 E2B / Qwen3.5 0.8B>_ (`LAB_MODEL=`_<gemma4-e2b / qwen35-0.8b>_)
-- **Quantization:** _<primary>_ + _<compare>_ (từ `models/active.json`)
+- **OS:** Windows 11 (AMD64)
+- **CPU:** 12th Gen Intel(R) Core(TM) i5-12450HX
+- **Cores:** 8 physical / 12 logical
+- **CPU extensions:** not reported by the probe on this Windows build (flag
+  detection reads `/proc/cpuinfo`, unavailable here) — the i5-12450HX (Alder Lake)
+  supports AVX2 by spec
+- **RAM:** 19.7 GB
+- **Accelerator:** NVIDIA GeForce RTX 3050 6GB Laptop GPU (CUDA backend), Vulkan also present
+- **llama.cpp asset đã tải:** `llama-b10488-bin-win-cuda-12.4-x64.zip` (+ `cudart-llama-bin-win-cuda-12.4-x64.zip`)
+- **Model đã dùng:** Gemma 4 E2B (`LAB_MODEL=gemma4-e2b`)
+- **Quantization:** UD-Q4_K_XL (primary) + UD-Q2_K_XL (compare) (từ `models/active.json`)
 
-**Chạy ở đâu:** _<laptop của tôi / Colab / Kaggle>_
-_(Nếu dùng cloud fallback: nói rõ vì sao — RAM < 8 GB, setup fail, v.v. Không mất điểm.)_
+**Chạy ở đâu:** laptop của tôi (Windows 11, RTX 3050)
 
-**Setup story** (≤ 80 chữ): điều gì cần thay đổi để lab chạy trên máy bạn? Có bước
-nào fail rồi phải workaround không?
-
-_Answer here._
+**Setup story** (≤ 80 chữ): Chạy đúng theo GUIDE.md, không fail bước nào. `make setup`
+tự nhận diện CUDA và tải bản `bin-win-cuda-12.4-x64` thay vì bản CPU, kèm CUDA
+runtime DLLs riêng (~640 MB tổng cho runtime). Toàn bộ base track chạy với GPU
+offload (`ngl=99`) chứ không phải CPU-only như ví dụ mẫu trong GUIDE.
 
 ---
 
@@ -42,14 +43,14 @@ _Answer here._
 
 | Quantization | Size (GB) | Load (ms) | TTFT P50/P95 (ms) | TPOT P50/P95 (ms) | E2E P50/P95/P99 (ms) | Decode (tok/s) |
 |---|--:|--:|--:|--:|--:|--:|
-| UD-Q4_K_XL | | | | | | |
-| UD-Q2_K_XL | | | | | | |
+| UD-Q4_K_XL | 2.97 | 10007 | 74 / 264 | 14.0 / 14.5 | 963 / 1176 / 1176 | 71.2 |
+| UD-Q2_K_XL | 2.24 | 4647 | 73 / 207 | 12.2 / 12.6 | 839 / 974 / 974 | 82.1 |
 
-**Quan sát** (≤ 60 chữ): 2-bit nhanh hơn bao nhiêu, và **có đáng không**? Bạn đã thử
-hỏi cùng một câu trên cả hai (`make serve` vs `.venv/bin/python labs/02-serve/serve.py --compare`)
-chưa? Chất lượng khác nhau thế nào?
-
-_Answer here._
+**Quan sát** (≤ 60 chữ): Q2_K_XL nhanh hơn 1.15× (82.1 vs 71.2 tok/s), nhẹ hơn 0.73 GB,
+load nhanh hơn 2.2×. Test cùng câu hỏi kỹ thuật trên cả hai (`make serve` vs
+`serve.py --compare --port 8090`): cả hai trả lời mạch lạc, đúng cơ chế, không khác
+biệt rõ rệt. Đáng dùng khi VRAM là ràng buộc (6 GB card); không đáng cho reasoning
+đa bước.
 
 ---
 
@@ -59,22 +60,23 @@ _Answer here._
 
 | Users | RPS | P50 (ms) | P95 (ms) | P99 (ms) | Eff. concurrency | Failures |
 |--:|--:|--:|--:|--:|--:|--:|
-| 10 | | | | | | |
-| 50 | | | | | | |
+| 10 | 2.70 | 2600 | 4300 | 5900 | 7.5 | 0.0% |
+| 50 | 2.78 | 15000 | 19000 | 19000 | 39.6 | 0.0% |
 
-- **Offered load tăng 5×, throughput thực tăng:** _<X.XX>×_
-- **P95 tăng:** _<X.XX>×_
-- **Effective concurrency ở 50 users:** _<số>_ so với `--parallel` = _<số>_ slots
+- **Offered load tăng 5×, throughput thực tăng:** 1.03×
+- **P95 tăng:** 4.42×
+- **Effective concurrency ở 50 users:** 39.6 so với `--parallel` = 4 slots
 
 **Peak `llamacpp:n_busy_slots_per_decode`** (từ `make metrics` khi `make load-50` đang
-chạy): _<số>_ / _<slots>_ slots
+chạy): 3.97 / 4 slots
 
-**Saturation reading** (≤ 80 chữ): server của bạn bão hoà ở đâu, và **bằng chứng nào**
-thuyết phục bạn? Nếu P95 tăng nhanh hơn RPS thì phần latency thêm đó là queue time hay
-compute time — bạn biết bằng cách nào? Nếu bạn phải nâng goodput@SLO, bạn sẽ đổi knob
-nào **trước**, và vì sao knob đó?
-
-_Answer here._
+**Saturation reading** (≤ 80 chữ): Server bão hoà ở/trước 50 users. Bằng chứng:
+throughput chỉ tăng 1.03× cho 5× tải, `n_busy_slots_per_decode` đạt 3.97/4 (99%)
+liên tục, `requests_deferred` ~40-45 suốt 60s. P95 tăng 4.42× trong khi RPS gần
+như đứng yên → phần trễ thêm là **queue time**, không phải compute (TPOT không đổi
+~12-14ms/token). Muốn nâng goodput@SLO, tôi sẽ tăng `--parallel` (4→8) trước —
+bottleneck là số slot, không phải tốc độ mỗi token — miễn VRAM (6 GB) còn đủ cho
+KV-cache thêm.
 
 ---
 
@@ -84,23 +86,23 @@ _Answer here._
 
 | Day | Piece | Real hay stub? |
 |---|---|---|
-| N16 Cloud/IaC | | |
-| N17 Data pipeline | | |
-| N18 Lakehouse | | |
-| N19 Vector + features | | |
+| N16 Cloud/IaC | none wired | stub |
+| N17 Data pipeline | fixed 3-doc corpus | stub |
+| N18 Lakehouse | in-memory list | stub |
+| N19 Vector + features | keyword overlap | stub |
 | N20 Serving | `llama-server` | real |
 
 **Latency split** (mean của 3 query, từ output của `pipeline.py`):
 
-- embed: _<ms>_
-- retrieve: _<ms>_
-- llm: _<ms>_
-- **stage chiếm nhiều nhất:** _<stage>_ (_<%>_ của total)
+- embed: 0.0 ms
+- retrieve: 0.7 ms
+- llm: 2803.7 ms
+- **stage chiếm nhiều nhất:** llm (100% của total)
 
-**Reflection** (≤ 60 chữ): bottleneck ở đâu? Có khớp với kỳ vọng của bạn không? Nếu
-phải giảm latency của pipeline này 2×, bạn sẽ tấn công vào đâu?
-
-_Answer here._
+**Reflection** (≤ 60 chữ): Đúng như kỳ vọng — embed/retrieve là stub keyword-matching
+trên 3 tài liệu nên gần như 0ms, chỉ llm là việc thật. Muốn giảm latency pipeline 2×,
+tôi sẽ tấn công stage llm: giảm `max_tokens` hoặc rút ngắn context đưa vào, vì
+TPOT đã sát ngưỡng memory-bandwidth của GPU, không còn nhiều dư địa tune server.
 
 ---
 
@@ -110,22 +112,32 @@ _Answer here._
 > một before/after thật (`benchmarks/01-tuning-tg128.md`). Đổi quantization,
 > `LAB_N_CTX`, hay `--parallel` rồi đo lại cũng được.
 
-**Change:** _<vd: hạ -t từ 16 xuống 8; vd: đổi sang UD-Q2_K_XL; vd: --parallel 4 → 8>_
+**Change:** GPU offload — `-ngl 0` (CPU-only) → `-ngl 99` (full GPU offload trên RTX 3050)
 
 ```
-before:  <số + đơn vị>
-after:   <số + đơn vị>
-speedup: <X.Y>×
+before:  22.83 tok/s  (llama-bench tg128, -ngl 0, -t 8)
+after:   75.8 tok/s   (llama-bench tg128, -ngl 99, -t 8, from make tune)
+speedup: 3.3x
 ```
 
 **Tại sao nó work** (1–2 đoạn — đây là phần grader đọc kỹ nhất):
 
-_Giải thích như đang nói với bạn ngồi cạnh. Bám vào **cơ chế**, không phải "vibes":
-memory bandwidth? vector width? cache residency? scheduling? queueing? Nếu kết quả
-**khác** với kỳ vọng từ deck — nói rõ, và giải thích vì sao. Grader thưởng điểm cho
-lập luận đúng về một kết quả bất ngờ, hơn là một con số đẹp không được giải thích._
+`make tune` (thread sweep, 1→24 threads) cho kết quả **hoàn toàn phẳng**: 75.0 →
+75.8 tok/s, spread chỉ 1.01×. Điều này khác kỳ vọng trong deck (peak ở physical
+core count, tụt khi vượt do P/E-core barrier sync) — lý do là `ngl=99` đã offload
+toàn bộ layer lên GPU, nên `-t` chỉ còn điều khiển một phần việc rất nhỏ trên CPU
+(sampling, KV-cache bookkeeping) không bao giờ là bottleneck. Vì vậy tôi đo thêm
+một knob khác để tìm ra thay đổi thật sự lớn: chạy cùng model, cùng `-t 8`, nhưng
+`-ngl 0` (ép CPU-only). Kết quả 22.83 tok/s — chậm hơn bản GPU 3.3×.
 
-_Answer here._
+Cơ chế: TPOT bị chặn bởi memory bandwidth ở cả hai trường hợp — mỗi token sinh ra
+đòi hỏi đọc lại toàn bộ ~3 GB trọng số. Với `-ngl 0`, việc đọc đó đi qua RAM hệ
+thống (dual-channel DDR, băng thông thấp hơn); với `-ngl 99`, cùng việc đọc đó xảy
+ra trên VRAM GDDR6 của RTX 3050, băng thông cao hơn nhiều lần. Đây không phải
+compute nhanh hơn (matmul đơn giản vẫn vậy) mà là **tier bộ nhớ nhanh hơn** —
+đúng bản chất TPOT = memory-bandwidth-bound, chỉ khác là quantization (đổi kích
+thước trọng số cần đọc) và GPU offload (đổi băng thông đọc) đều tác động vào cùng
+một biến số, còn thread count thì không, một khi GPU offload đã bật.
 
 ---
 
@@ -134,47 +146,56 @@ _Answer here._
 > Bỏ trống nếu không làm. Xem `bonus/README.md`. Đừng làm hết — **một** finding sâu
 > ăn điểm hơn năm bảng nông.
 
-**Đã làm:** _<B1 build-compare / B2 sweep nào / B4 challenge nào / B5 lựa chọn nào>_
+**Đã làm:** B2 — `make sweep-ctx` (context-length prefill sweep, 256→8192 tokens)
 
 **Numbers:**
 
 ```
-before:  <số>
-after:   <số>
-speedup: <X.Y>×
+before:  240.1 ms TTFT contribution  @ 256 prompt tokens
+after:   3181.3 ms TTFT contribution @ 8192 prompt tokens
+growth:  13.2x latency for 32x more tokens (0.41x of linear — sub-linear, not quadratic)
 ```
 
 **Điều này nói lên gì mà deck chưa nói:**
 
-_(để trống nếu bạn không làm phần này)_
+Deck dự đoán prefill sẽ bùng nổ O(N²) khi context dài. Trên máy này (RTX 3050,
+`ngl=99`, model 2B-class), điều đó **không xảy ra** trong dải 256-8192 token —
+prefill throughput còn *tăng* theo context (1066 → 2575 tok/s) vì GPU tận dụng
+batch matmul lớn hơn hiệu quả hơn, và ở N≤8192 trên model nhỏ, phần linear
+projection/MLP (O(N)) vẫn lấn át attention (O(N²)). Nhưng TTFT tuyệt đối vẫn tăng
+13.2× — nghĩa là dù không quadratic, 3.2 giây chờ token đầu tiên ở 8192 token vẫn
+là trải nghiệm tệ. Bài học thực tế cho RAG: ngân sách context không nên đặt theo
+"chỗ đường cong bẻ cong" (chưa thấy trên máy này) mà nên đặt theo SLO TTFT chấp
+nhận được — với SLO ~1s, ngân sách hợp lý trên máy này là ~1-2K token retrieved
+context, thấp hơn nhiều so với giới hạn 8192 mà context window cho phép.
 
 ---
 
 ## 7. Điều làm bạn ngạc nhiên nhất  *(optional)*
 
-_(1–2 câu. Không bắt buộc, nhưng grader đọc hết.)_
-
-_(để trống nếu bạn không làm phần này)_
+Thread sweep hoàn toàn phẳng (1.01× spread) từng khiến tôi nghĩ đo sai — hoá ra đó
+chính là bằng chứng gián tiếp cho thấy GPU offload đã loại CPU threading khỏi
+đường găng hoàn toàn, chứ không phải lỗi benchmark.
 
 ---
 
 ## 8. Self-check trước khi push
 
-- [ ] `hardware.json` committed
-- [ ] `models/active.json` committed
-- [ ] `benchmarks/01-quickstart-results.md` committed (`make bench`)
-- [ ] `benchmarks/01-tuning-tg128.md` committed (`make tune`)
-- [ ] `benchmarks/02-server-results.md` committed (`make load-report`)
-- [ ] `benchmarks/02-server-batching-u50.md` hoặc `-metrics-u50.csv` committed (`make metrics`)
-- [ ] `benchmarks/locust-10_stats.csv` + `locust-50_stats.csv` committed (`make load-10` / `load-50`)
-- [ ] `benchmarks/03-integration-results.md` committed (`make pipeline`)
-- [ ] Mọi section **"required — replace this line"** trong các file `benchmarks/*.md`
+- [x] `hardware.json` committed
+- [x] `models/active.json` committed
+- [x] `benchmarks/01-quickstart-results.md` committed (`make bench`)
+- [x] `benchmarks/01-tuning-tg128.md` committed (`make tune`)
+- [x] `benchmarks/02-server-results.md` committed (`make load-report`)
+- [x] `benchmarks/02-server-batching-u50.md` hoặc `-metrics-u50.csv` committed (`make metrics`)
+- [x] `benchmarks/locust-10_stats.csv` + `locust-50_stats.csv` committed (`make load-10` / `load-50`)
+- [x] `benchmarks/03-integration-results.md` committed (`make pipeline`)
+- [x] Mọi section **"required — replace this line"** trong các file `benchmarks/*.md`
       đã được thay bằng nhận xét của bạn
-- [ ] 5 screenshots trong `submission/screenshots/`
-- [ ] `make verify` → **exit 0**
+- [x] 5 screenshots trong `submission/screenshots/`
+- [x] `make verify` → **exit 0**
 - [ ] Repo GitHub ở chế độ **public**
 - [ ] Đã paste public URL vào VinUni LMS
-- [ ] **Không** commit `models/*.gguf` hay `runtime/` (đã có trong `.gitignore`)
+- [x] **Không** commit `models/*.gguf` hay `runtime/` (đã có trong `.gitignore`)
 
 **Quan trọng:** repo phải **public** đến khi điểm được công bố. Private → grader không
 xem được → 0 điểm.
